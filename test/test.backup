@@ -1,0 +1,55 @@
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/slab.h>
+
+#define FILE_NAME "./test_lofft.txt"
+
+static char buf[] = "This is a kernel module file read/write test.\n";
+
+static int __init hello_init(void)
+{
+    struct file *fp;
+    char *buf1;
+    loff_t pos;
+    ssize_t res = 0;
+    printk("Enter module.\n");
+    fp = filp_open(FILE_NAME, O_RDWR|O_CREAT,0777);
+    if (IS_ERR(fp)){
+        printk("create file error.\n");
+        return -1;
+    }
+
+    pos = 4096 * 2;
+    res = kernel_write(fp, buf, sizeof(buf), pos); 
+    // 第一个参数表示要写入的文件，第二个表示从缓冲区读数据；
+    // 第三个参数表示读多少字节，第四个参数表示从文件的指定位置开始写。
+    if (res < 0) {
+        printk("kernel_write error: %zd\n", res);
+        return 0;
+    }
+    pos = 0;
+    buf1 =  kmalloc(sizeof(buf)+5, GFP_KERNEL);
+    memset(buf1, 0, sizeof(buf)+5);
+    res = kernel_read(fp, pos, buf1, sizeof(buf));
+    if (res < 0) {
+        printk("kernel_read error: %zd\n", res);
+        return 0;
+    }
+    printk("read: %s\n",buf1);
+                
+    filp_close(fp, NULL);
+    kfree(buf1);                   
+    return 0;
+}
+
+static void __exit hello_exit(void)
+{
+    printk("Exit module.\n");
+}
+ 
+module_init(hello_init);
+module_exit(hello_exit);
+ 
+MODULE_LICENSE("GPL");
